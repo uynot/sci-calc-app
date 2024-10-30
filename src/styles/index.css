@@ -11,4 +11,30 @@
 body {
 	color: rgb(var(--foreground-rgb));
 	background: linear-gradient(to bottom, transparent, rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+	-webkit-tap-highlight-color: transparent;
+}
+
+/* Disable text selection */
+.calculator-button {
+	user-select: none;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+}
+
+/* Custom button active state */
+.calculator-button:active {
+	transform: scale(0.95);
+}
+
+/* Improve button press feedback on mobile */
+@media (hover: none) {
+	.calculator-button:active {
+		background-color: #ddd;
+	}
+}
+
+/* Prevent zoom on double tap (iOS) */
+button {
+	touch-action: manipulation;
 }

@@ -1,243 +1,173 @@
-import React, { useState } from "react";
-import { Card } from "./ui/Card";
+import React, { useState, useEffect } from "react";
+import { Card } from "../components/ui/Card";
+import { buttonLayout } from "../components/buttonConfig";
+import { calculateExpression, handleSpecialFunctions } from "../components/calculatorLogic";
 
 const Calculator = () => {
-	const [display, setDisplay] = useState("0");
-	const [memory, setMemory] = useState(0);
-	const [formula, setFormula] = useState("");
-	const [isNewCalculation, setIsNewCalculation] = useState(true);
-	const [programSlots, setProgramSlots] = useState(Array(6).fill(""));
+	// State
+	const [display, setDisplay] = useState({
+		mode: "COMP",
+		input: "",
+		result: "0",
+	});
+	const [shiftMode, setShiftMode] = useState(false);
+	const [alphaMode, setAlphaMode] = useState(false);
+	const [lastAnswer, setLastAnswer] = useState("0");
 
-	// Handle digit and operator input
-	const handleInput = (value) => {
-		if (isNewCalculation) {
-			setDisplay(value);
-			setIsNewCalculation(false);
-		} else {
-			setDisplay(display === "0" ? value : display + value);
-		}
+	// Audio feedback setup
+	useEffect(() => {
+		const audio = new Audio("/src/sound/click.mp3"); // Updated path
+		audio.preload = "auto";
+		return () => audio.remove();
+	}, []);
+
+	const playClickSound = () => {
+		const audio = new Audio("/src/sound/click.mp3"); // Updated path
+		audio.play().catch((e) => {
+			// Silently handle audio play failure
+			console.log("Audio play failed:", e);
+		});
 	};
 
-	// Clear display
-	const handleClear = () => {
-		setDisplay("0");
-		setFormula("");
-		setIsNewCalculation(true);
+	// Button styles
+	const getButtonClass = (type) => {
+		const base = `
+      p-2 text-sm md:text-base rounded-lg m-0.5 
+      flex flex-col items-center justify-center 
+      min-w-[45px] h-[45px] md:h-[50px]
+      font-bold font-mono
+      transition-colors duration-100
+      active:transform active:scale-95
+      relative
+      select-none
+    `;
+
+		const styles = {
+			number: `${base} bg-gray-700 text-white hover:bg-gray-600 active:bg-gray-800`,
+			operator: `${base} bg-blue-200 hover:bg-blue-300 active:bg-blue-400`,
+			function: `${base} bg-gray-200 hover:bg-gray-300 active:bg-gray-400`,
+			shift: `${base} ${shiftMode ? "bg-orange-300" : "bg-orange-200"} active:bg-orange-400`,
+			alpha: `${base} ${alphaMode ? "bg-green-300" : "bg-green-200"} active:bg-green-400`,
+			delete: `${base} bg-red-200 hover:bg-red-300 active:bg-red-400`,
+			clear: `${base} bg-red-300 hover:bg-red-400 active:bg-red-500`,
+			execute: `${base} bg-green-500 hover:bg-green-600 active:bg-green-700 text-white`,
+			orange: `${base} bg-orange-200 hover:bg-orange-300 active:bg-orange-400`,
+		};
+		return styles[type] || styles.function;
 	};
 
-	// Calculate result
-	const calculateResult = () => {
-		try {
-			// Using Function constructor for safe evaluation
-			const result = new Function("return " + formula + display)();
-			setDisplay(String(result));
-			setFormula("");
-			setIsNewCalculation(true);
-		} catch (error) {
-			setDisplay("Error");
-			setIsNewCalculation(true);
-		}
-	};
+	// Handle button press
+	const handleButtonPress = (button) => {
+		playClickSound();
 
-	// Handle operator clicks
-	const handleOperator = (operator) => {
-		setFormula(formula + display + operator);
-		setIsNewCalculation(true);
-	};
+		const action = shiftMode ? button.shifted || button.action : button.action;
 
-	// Memory functions
-	const handleMemory = (action) => {
 		switch (action) {
-			case "M+":
-				setMemory(memory + parseFloat(display));
+			case "SHIFT":
+				setShiftMode(!shiftMode);
+				setAlphaMode(false);
 				break;
-			case "M-":
-				setMemory(memory - parseFloat(display));
-				break;
-			case "MR":
-				setDisplay(String(memory));
-				break;
-			case "MC":
-				setMemory(0);
-				break;
-		}
-		setIsNewCalculation(true);
-	};
 
-	// Scientific functions
-	const handleScientific = (func) => {
-		const num = parseFloat(display);
-		let result;
-		switch (func) {
-			case "sin":
-				result = Math.sin(num);
+			case "ALPHA":
+				setAlphaMode(!alphaMode);
+				setShiftMode(false);
 				break;
-			case "cos":
-				result = Math.cos(num);
-				break;
-			case "tan":
-				result = Math.tan(num);
-				break;
-			case "sqrt":
-				result = Math.sqrt(num);
-				break;
-			case "log":
-				result = Math.log10(num);
-				break;
-			case "ln":
-				result = Math.log(num);
-				break;
-		}
-		setDisplay(String(result));
-		setIsNewCalculation(true);
-	};
 
-	// Program slots
-	const handleProgram = (slot, mode) => {
-		if (mode === "save") {
-			setProgramSlots((slots) => {
-				const newSlots = [...slots];
-				newSlots[slot] = display;
-				return newSlots;
-			});
-		} else if (mode === "recall") {
-			if (programSlots[slot]) {
-				setDisplay(programSlots[slot]);
-			}
+			case "AC":
+				setDisplay({ mode: "COMP", input: "", result: "0" });
+				break;
+
+			case "DEL":
+				setDisplay((prev) => ({
+					...prev,
+					input: prev.input.slice(0, -1),
+				}));
+				break;
+
+			case "EXE":
+				const result = calculateExpression(display.input);
+				setDisplay((prev) => ({
+					...prev,
+					result,
+					input: "",
+				}));
+				setLastAnswer(result);
+				break;
+
+			case "ANS":
+				setDisplay((prev) => ({
+					...prev,
+					input: prev.input + lastAnswer,
+				}));
+				break;
+
+			default:
+				if (["PLUS", "MINUS", "MULT", "DIV"].includes(action)) {
+					const operators = { PLUS: "+", MINUS: "-", MULT: "×", DIV: "÷" };
+					setDisplay((prev) => ({
+						...prev,
+						input: prev.input + operators[action],
+					}));
+				} else if (action.match(/^[0-9.]$/)) {
+					setDisplay((prev) => ({
+						...prev,
+						input: prev.input + action,
+					}));
+				} else {
+					const specialResult = handleSpecialFunctions(action, display.result);
+					if (specialResult !== display.result) {
+						setDisplay((prev) => ({
+							...prev,
+							result: specialResult,
+							input: "",
+						}));
+					} else {
+						setDisplay((prev) => ({
+							...prev,
+							input: prev.input + button.label,
+						}));
+					}
+				}
+		}
+
+		// Reset shift/alpha after use unless it's a mode toggle
+		if (action !== "SHIFT" && action !== "ALPHA") {
+			setShiftMode(false);
+			setAlphaMode(false);
 		}
 	};
-
-	const ButtonClass = "p-2 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg m-1";
-	const OperatorButtonClass = "p-2 text-sm bg-orange-200 hover:bg-orange-300 rounded-lg m-1";
-	const ScientificButtonClass = "p-2 text-sm bg-blue-200 hover:bg-blue-300 rounded-lg m-1";
 
 	return (
-		<Card className="p-4 max-w-md mx-auto bg-gray-100">
-			<div className="mb-4 p-2 bg-white rounded-lg">
-				<div className="text-right text-xl font-mono">{display}</div>
-				<div className="text-right text-sm text-gray-500">{formula}</div>
+		<Card className="w-full max-w-sm mx-auto bg-gray-100 p-2">
+			{/* Calculator Display */}
+			<div className="bg-[#e0e9e0] p-3 mb-3 font-mono rounded-lg shadow-inner">
+				<div className="text-sm h-5 font-bold">{display.mode}</div>
+				<div className="text-xl h-7 overflow-hidden font-bold">{display.input}</div>
+				<div className="text-2xl text-right h-9 overflow-hidden font-bold">{display.result}</div>
 			</div>
 
-			{/* Memory and Program Buttons */}
-			<div className="grid grid-cols-6 gap-1 mb-2">
-				<button onClick={() => handleMemory("MC")} className={ScientificButtonClass}>
-					MC
-				</button>
-				<button onClick={() => handleMemory("MR")} className={ScientificButtonClass}>
-					MR
-				</button>
-				<button onClick={() => handleMemory("M+")} className={ScientificButtonClass}>
-					M+
-				</button>
-				<button onClick={() => handleMemory("M-")} className={ScientificButtonClass}>
-					M-
-				</button>
-			</div>
-
-			{/* Scientific Functions */}
-			<div className="grid grid-cols-6 gap-1 mb-2">
-				<button onClick={() => handleScientific("sin")} className={ScientificButtonClass}>
-					sin
-				</button>
-				<button onClick={() => handleScientific("cos")} className={ScientificButtonClass}>
-					cos
-				</button>
-				<button onClick={() => handleScientific("tan")} className={ScientificButtonClass}>
-					tan
-				</button>
-				<button onClick={() => handleScientific("sqrt")} className={ScientificButtonClass}>
-					√
-				</button>
-				<button onClick={() => handleScientific("log")} className={ScientificButtonClass}>
-					log
-				</button>
-				<button onClick={() => handleScientific("ln")} className={ScientificButtonClass}>
-					ln
-				</button>
-			</div>
-
-			{/* Program Slots */}
-			<div className="grid grid-cols-6 gap-1 mb-2">
-				{[0, 1, 2, 3, 4, 5].map((slot) => (
-					<button
-						key={slot}
-						onClick={() => handleProgram(slot, "recall")}
-						onContextMenu={(e) => {
-							e.preventDefault();
-							handleProgram(slot, "save");
-						}}
-						className={ScientificButtonClass}>
-						P{slot + 1}
-					</button>
+			{/* Button Layout */}
+			<div className="grid gap-1">
+				{buttonLayout.map((row, rowIndex) => (
+					<div key={rowIndex} className={`grid gap-1 ${rowIndex === 0 ? "grid-cols-3" : rowIndex <= 3 ? "grid-cols-6" : "grid-cols-5"}`}>
+						{row.map((button, index) => (
+							<button key={`${rowIndex}-${index}`} onClick={() => handleButtonPress(button)} className={getButtonClass(button.type)}>
+								<span className="text-base font-bold">{shiftMode && button.shifted ? button.shifted : button.label}</span>
+								{button.shifted && (
+									<span className="absolute top-0.5 right-0.5 text-[8px] text-orange-500 font-bold">{button.shifted}</span>
+								)}
+							</button>
+						))}
+					</div>
 				))}
 			</div>
 
-			{/* Number Pad and Basic Operators */}
-			<div className="grid grid-cols-4 gap-1">
-				<button onClick={handleClear} className={OperatorButtonClass}>
-					C
-				</button>
-				<button onClick={() => handleInput("(")} className={OperatorButtonClass}>
-					(
-				</button>
-				<button onClick={() => handleInput(")")} className={OperatorButtonClass}>
-					)
-				</button>
-				<button onClick={() => handleOperator("/")} className={OperatorButtonClass}>
-					÷
-				</button>
-
-				<button onClick={() => handleInput("7")} className={ButtonClass}>
-					7
-				</button>
-				<button onClick={() => handleInput("8")} className={ButtonClass}>
-					8
-				</button>
-				<button onClick={() => handleInput("9")} className={ButtonClass}>
-					9
-				</button>
-				<button onClick={() => handleOperator("*")} className={OperatorButtonClass}>
-					×
-				</button>
-
-				<button onClick={() => handleInput("4")} className={ButtonClass}>
-					4
-				</button>
-				<button onClick={() => handleInput("5")} className={ButtonClass}>
-					5
-				</button>
-				<button onClick={() => handleInput("6")} className={ButtonClass}>
-					6
-				</button>
-				<button onClick={() => handleOperator("-")} className={OperatorButtonClass}>
-					-
-				</button>
-
-				<button onClick={() => handleInput("1")} className={ButtonClass}>
-					1
-				</button>
-				<button onClick={() => handleInput("2")} className={ButtonClass}>
-					2
-				</button>
-				<button onClick={() => handleInput("3")} className={ButtonClass}>
-					3
-				</button>
-				<button onClick={() => handleOperator("+")} className={OperatorButtonClass}>
-					+
-				</button>
-
-				<button onClick={() => handleInput("0")} className={ButtonClass}>
-					0
-				</button>
-				<button onClick={() => handleInput(".")} className={ButtonClass}>
-					.
-				</button>
-				<button onClick={() => handleInput("E")} className={ButtonClass}>
-					EXP
-				</button>
-				<button onClick={calculateResult} className="p-2 text-sm bg-green-500 hover:bg-green-600 text-white rounded-lg m-1">
-					=
-				</button>
+			{/* Footer info - optional */}
+			<div className="mt-4 text-xs text-gray-500 text-center">
+				<p>
+					This project is for academic and non-commercial use only. All product names, trademarks, and registered trademarks are property of
+					their respective owners.
+				</p>
 			</div>
 		</Card>
 	);
