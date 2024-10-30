@@ -4,7 +4,6 @@ import { buttonLayout } from "../components/buttonConfig";
 import { calculateExpression, handleSpecialFunctions } from "../components/calculatorLogic";
 
 const Calculator = () => {
-	// State
 	const [display, setDisplay] = useState({
 		mode: "COMP",
 		input: "",
@@ -14,22 +13,21 @@ const Calculator = () => {
 	const [alphaMode, setAlphaMode] = useState(false);
 	const [lastAnswer, setLastAnswer] = useState("0");
 
-	// Audio feedback setup
+	// audio feedback
 	useEffect(() => {
-		const audio = new Audio("/src/sound/click.mp3"); // Updated path
+		const audio = new Audio("/src/sound/click.mp3");
 		audio.preload = "auto";
 		return () => audio.remove();
 	}, []);
 
 	const playClickSound = () => {
-		const audio = new Audio("/src/sound/click.mp3"); // Updated path
+		const audio = new Audio("/src/sound/click.mp3");
 		audio.play().catch((e) => {
 			// Silently handle audio play failure
 			console.log("Audio play failed:", e);
 		});
 	};
 
-	// Button styles
 	const getButtonClass = (type) => {
 		const base = `
       p-2 text-sm md:text-base rounded-lg m-0.5 
@@ -162,7 +160,7 @@ const Calculator = () => {
 				))}
 			</div>
 
-			{/* Footer info - optional */}
+			{/* Footer */}
 			<div className="mt-4 text-xs text-gray-500 text-center">
 				<p>
 					This project is for academic and non-commercial use only. All product names, trademarks, and registered trademarks are property of
