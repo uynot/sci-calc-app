@@ -12,6 +12,7 @@ const Calculator = () => {
 	const [shiftMode, setShiftMode] = useState(false);
 	const [alphaMode, setAlphaMode] = useState(false);
 	const [lastAnswer, setLastAnswer] = useState("0");
+	const version = 1.01;
 
 	// audio feedback
 	useEffect(() => {
@@ -138,7 +139,7 @@ const Calculator = () => {
 	return (
 		<Card className="w-full max-w-sm mx-auto bg-gray-100 p-2">
 			{/* Calculator Display */}
-			<div className="bg-[#e0e9e0] p-3 mb-3 font-mono rounded-lg shadow-inner">
+			<div className="bg-[#e0e9e0] p-3 mt-3 mb-3 font-mono rounded-lg shadow-inner">
 				<div className="text-sm h-5 font-bold">{display.mode}</div>
 				<div className="text-xl h-7 overflow-hidden font-bold">{display.input}</div>
 				<div className="text-2xl text-right h-9 overflow-hidden font-bold">{display.result}</div>
@@ -162,7 +163,10 @@ const Calculator = () => {
 
 			{/* Footer */}
 			<div className="mt-4 text-xs text-gray-500 text-center">
-				<p>
+				<p className="mt-2">
+					version {version} | {new Date().getFullYear()}
+				</p>
+				<p className="mt-2">
 					This project is for academic and non-commercial use only. All product names, trademarks, and registered trademarks are property of
 					their respective owners.
 				</p>
